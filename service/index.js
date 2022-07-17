@@ -20,12 +20,7 @@ app.post("/", async (req, res) => {
     let status = "ACCEPTED";
     result.tid = tid;
     result.status = status;
-    const time = Date.now();
     const orderRequest = { ...req.body, ...result };
-    await redis.lpush(
-      `QUEUE:STATUS`,
-      JSON.stringify({ order: orderRequest, status: status, time: time })
-    );
     await redis.lpush(`QUEUE:ORDER`, JSON.stringify(orderRequest));
   }
 

@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ioredis": "^5.2.1"
+    "ioredis": "^5.2.1",
+    "pg": "^8.7.3",
+    "sequelize": "^6.21.3"
   }
 }

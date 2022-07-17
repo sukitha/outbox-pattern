@@ -1,4 +1,7 @@
 const Redis = require("ioredis");
+const db = require("./model/db");
+const Event = db.event;
+
 const redisBlocking = new Redis({
   host: "cache",
   port: 6379,
@@ -9,8 +12,16 @@ const redis = new Redis({
   port: 6379,
 });
 
+async function StoreEvent(entityType, entityId, eventType, eventId) {
+  await Event.create({
+    entityType: entityType,
+    eventId: eventId,
+    eventType: eventType,
+    entityId: entityId,
+  });
+}
+
 async function ProcessOrder(order) {
-  const time = Date.now();
   if (order && order.status && order.status === "DELIVERY_PROCESSED") {
     let status = "ORDER_COMPLETED";
     let cost = order.itemCount * order.itemId; // calculation login
@@ -23,6 +34,7 @@ async function ProcessOrder(order) {
       "QUEUE:STATUS",
       JSON.stringify({ order: orderRequest, status: status, time: time })
     );
+    await StoreEvent('order', order.tid, order.status, time);
   } else {
     let status = "ORDER_PROCESSED";
     let cost = order.itemCount * order.itemId; // calculation login
@@ -32,10 +44,21 @@ async function ProcessOrder(order) {
       cost: cost,
     };
 
+    const time1 = Date.now();
     await redis.lpush(
       `QUEUE:STATUS`,
-      JSON.stringify({ order: orderRequest, status: status, time: time })
+      JSON.stringify({ order: order, status: order.status, time: time1 })
     );
+
+    await StoreEvent('order', order.tid, order.status, time1);
+
+    const time2 = Date.now();
+    await redis.lpush(
+      `QUEUE:STATUS`,
+      JSON.stringify({ order: orderRequest, status: status, time: time2 })
+    );
+
+    await StoreEvent('order', order.tid, order.status, time2);
     await redis.lpush(`QUEUE:PAYMENT`, JSON.stringify(orderRequest));
   }
 }
@@ -51,6 +74,8 @@ async function OrderReconciliation(order) {
     JSON.stringify({ order: order, status: order.status, time: time1 })
   );
 
+  await StoreEvent('order', order.tid, order.status, time1);
+
   const orderRequest = {
     ...order,
     status: status,
@@ -61,13 +86,14 @@ async function OrderReconciliation(order) {
     "QUEUE:STATUS",
     JSON.stringify({ order: orderRequest, status: status, time: time2 })
   );
+
+  await StoreEvent('order', order.tid, order.status, time2);
   await redis.lpush(
     "QUEUE:MANUAL:RECONCILIATION",
     JSON.stringify(orderRequest)
   );
 }
 
-// QUEUE:PAYMENT:RECONCILIATION
 async function ProcessPaymentReply(order) {
   const time = Date.now();
   console.log(`Payment processed ${order.cost}`);
@@ -83,7 +109,10 @@ async function ProcessPaymentReply(order) {
       time: time,
     })
   );
+  await StoreEvent('order', order.tid, order.status, time);
   await redis.lpush("QUEUE:DELIVERY", JSON.stringify(orderRequest));
+
+  
 }
 
 async function ProcessDeliveryReply(order) {
@@ -107,7 +136,9 @@ async function ProcessDeliveryReply(order) {
       time: time,
     })
   );
+  await StoreEvent('order', order.tid, order.status, time);
 }
+
 
 function OrderHandler() {
   redisBlocking

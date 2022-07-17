@@ -30,6 +30,11 @@ services:
     command: redis-server
     volumes: 
       - cache:/data
+  postgres:
+    image: postgres:9.6.2-alpine
+    environment:
+      POSTGRES_USER: orderapp
+      POSTGRES_DB: orderapps
 volumes:
   cache:
     driver: local

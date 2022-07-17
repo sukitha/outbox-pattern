@@ -10,6 +10,7 @@ const redis = new Redis({
 });
 
 async function ProcessStatus(order, status, time) {
+  console.log(`Processing status ${status}`);
   await redis.hset(`STATUS:${order.tid}`, time, status);
   await redis.hset(`STATUS:${order.tid}`, `$LATEST`, status);
 }
@@ -17,7 +18,7 @@ async function ProcessStatus(order, status, time) {
 function StatusHandler() {
   redisBlocking.brpop(`QUEUE:STATUS`, 5).then(async (data) => {
     if (data && Array.isArray(data) && data.length > 1) {
-      console.log(`Processing delivery ${data[1]}`);
+      console.log(`Processing Status ${data[1]}`);
       let status = JSON.parse(data[1]);
       await ProcessStatus(status.order, status.status, status.time);
     }

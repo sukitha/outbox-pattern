@@ -20,7 +20,7 @@ async function ProcessOrder(order) {
       cost: cost,
     };
     await redis.lpush(
-      `QUEUE:STATUS`,
+      "QUEUE:STATUS",
       JSON.stringify({ order: orderRequest, status: status, time: time })
     );
   } else {
@@ -41,34 +41,99 @@ async function ProcessOrder(order) {
 }
 
 async function OrderReconciliation(order) {
-  const time = Date.now();
+  console.log(`Order Reconciliation - ${order.status}`);
+  const time1 = Date.now();
+
   let status = "ORDER_CANCELED";
+
+  await redis.lpush(
+    "QUEUE:STATUS",
+    JSON.stringify({ order: order, status: order.status, time: time1 })
+  );
 
   const orderRequest = {
     ...order,
     status: status,
   };
 
+  const time2 = Date.now();
   await redis.lpush(
-    `QUEUE:STATUS`,
-    JSON.stringify({ order: orderRequest, status: status, time: time })
+    "QUEUE:STATUS",
+    JSON.stringify({ order: orderRequest, status: status, time: time2 })
   );
   await redis.lpush(
-    `QUEUE:MANUAL:RECONCILIATION`,
+    "QUEUE:MANUAL:RECONCILIATION",
     JSON.stringify(orderRequest)
+  );
+}
+
+// QUEUE:PAYMENT:RECONCILIATION
+async function ProcessPaymentReply(order) {
+  const time = Date.now();
+  console.log(`Payment processed ${order.cost}`);
+  const orderRequest = {
+    ...order,
+  };
+
+  await redis.lpush(
+    "QUEUE:STATUS",
+    JSON.stringify({
+      order: orderRequest,
+      status: orderRequest.status,
+      time: time,
+    })
+  );
+  await redis.lpush("QUEUE:DELIVERY", JSON.stringify(orderRequest));
+}
+
+async function ProcessDeliveryReply(order) {
+  const time = Date.now();
+  console.log(`Delivery reply processed ${order.cost} - ${order.status}`);
+  const orderRequest = {
+    ...order,
+  };
+
+  if (order.status === "DELIVERY_FAILED") {
+    await redis.lpush(
+      "QUEUE:PAYMENT:RECONCILIATION",
+      JSON.stringify(orderRequest)
+    );
+  }
+  await redis.lpush(
+    "QUEUE:STATUS",
+    JSON.stringify({
+      order: orderRequest,
+      status: orderRequest.status,
+      time: time,
+    })
   );
 }
 
 function OrderHandler() {
   redisBlocking
-    .brpop(`QUEUE:ORDER`, `QUEUE:ORDER:RECONCILIATION`, 5)
+    .brpop(
+      "QUEUE:ORDER",
+      "QUEUE:ORDER:RECONCILIATION",
+      "QUEUE:PAYMENT:REPLY",
+      "QUEUE:DELIVERY:REPLY",
+      "QUEUE:PAYMENT:RECONCILIATION:REPLY",
+      5
+    )
     .then(async (data) => {
       if (data && Array.isArray(data) && data.length > 1) {
-        if (data[0] === "QUEUE:ORDER") {
-          console.log(`Processing order ${data[1]}`);
-          await ProcessOrder(JSON.parse(data[1]));
-        } else {
-          await OrderReconciliation(JSON.parse(data[1]));
+        switch (data[0]) {
+          case "QUEUE:ORDER":
+            await ProcessOrder(JSON.parse(data[1]));
+            break;
+          case "QUEUE:PAYMENT:REPLY":
+            await ProcessPaymentReply(JSON.parse(data[1]));
+            break;
+          case "QUEUE:DELIVERY:REPLY":
+            await ProcessDeliveryReply(JSON.parse(data[1]));
+            break;
+          case "QUEUE:PAYMENT:RECONCILIATION:REPLY":
+            await OrderReconciliation(JSON.parse(data[1]));
+            break;
         }
       }
       OrderHandler();

@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ioredis": "^5.2.1"
+    "ioredis": "^5.2.1",
+    "kafkajs": "^2.1.0"
   }
 }

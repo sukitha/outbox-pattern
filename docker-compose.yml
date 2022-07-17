@@ -32,6 +32,7 @@ services:
     restart: always
     depends_on:
       - cache
+      - kafka
   cache:
     image: redis:6.2-alpine
     restart: always
@@ -41,7 +42,7 @@ services:
     volumes: 
       - cache:/data
   postgres:
-    image: postgres:9.6.2-alpine
+    image: debezium/example-postgres:1.8
     restart: always
     ports:
      - 5432:5432
@@ -60,7 +61,7 @@ services:
   kafka:
     container_name: kafka
     restart: always
-    image: debezium/kafka
+    image: debezium/kafka:1.8
     ports:
      - 9092:9092
     links:
@@ -76,7 +77,7 @@ services:
   #     POSTGRES_PASSWORD: orderapps
   #     POSTGRES_DB: orderapp
   connect:
-    image: debezium/connect
+    image: debezium/connect:1.8
     restart: always
     ports:
      - 8083:8083
@@ -84,11 +85,49 @@ services:
      - kafka
      - postgres
     environment:
-     - BOOTSTRAP_SERVERS=kafka:9092
-     - GROUP_ID=1
-     - CONFIG_STORAGE_TOPIC=my_connect_configs
-     - OFFSET_STORAGE_TOPIC=my_connect_offsets
-     - STATUS_STORAGE_TOPIC=my_connect_statuses
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+      # KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      # VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      # CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      # CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:5.5.3
+    environment:
+     - SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=zookeeper:2181
+     - SCHEMA_REGISTRY_HOST_NAME=schema-registry
+     - SCHEMA_REGISTRY_LISTENERS=http://schema-registry:8081,http://localhost:8081
+    depends_on: [zookeeper, kafka]
+
+  kafka-topics-ui:
+    container_name: kafka-topics-ui
+    image: parrotstream/kafka-topics-ui:latest
+    external_links:
+    - kafka
+    ports:
+    - 8001:8001
+    environment:
+      KAFKA_REST_PROXY_URL: http://kafka-rest:8082
+      PROXY: "true"
+      PORT: 8001
+
+  kafka-rest:
+    image: confluentinc/cp-kafka-rest:6.0.0
+    hostname: kafka-rest-1
+    container_name: kafka-rest-1
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - "8082:8082"
+    environment:
+      KAFKA_REST_HOST_NAME: kafka-rest
+      KAFKA_REST_LISTENERS: http://0.0.0.0:8082
+      KAFKA_REST_BOOTSTRAP_SERVERS: kafka:9092
 volumes:
   cache:
     driver: local

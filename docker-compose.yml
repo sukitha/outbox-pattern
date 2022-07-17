@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  service:
+    build: ./service/
+    ports:
+      - "3000:3000"
+    depends_on:
+      - cache
+  order:
+    build: ./order/
+    depends_on:
+      - cache
+  payment:
+    build: ./payment/
+    depends_on:
+      - cache
+  delivery:
+    build: ./delivery/
+    depends_on:
+      - cache
+  status:
+      build: ./status/
+      depends_on:
+        - cache
+  cache:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes: 
+      - cache:/data
+volumes:
+  cache:
+    driver: local

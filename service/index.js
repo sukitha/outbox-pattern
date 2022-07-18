@@ -27,14 +27,6 @@ app.post("/", async (req, res) => {
   res.send(result);
 });
 
-app.get("/:tid", async (req, res) => {
-  const status = await redis.hgetall(`STATUS:${req.params.tid}`);
-  res.send({
-    tid: req.params.tid,
-    status: status,
-  });
-});
-
 app.listen(port, () => {
   console.log(`Service app listening at http://localhost:${port}`);
 });

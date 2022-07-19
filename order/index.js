@@ -2,6 +2,8 @@ const Redis = require("ioredis");
 const db = require("./model/db");
 const Event = db.event;
 
+db.connect();
+
 const redisBlocking = new Redis({
   host: "cache",
   port: 6379,
@@ -77,7 +79,7 @@ async function ProcessPaymentReply(order) {
     ...order,
   };
 
-  await StoreEvent("order", order.tid, order.status, time);
+  await StoreEvent("payment", order.tid, order.status, time);
   await redis.lpush("QUEUE:DELIVERY", JSON.stringify(orderRequest));
 }
 
@@ -88,7 +90,7 @@ async function ProcessDeliveryReply(order) {
     ...order,
   };
 
-  await StoreEvent("order", order.tid, order.status, time);
+  await StoreEvent("delivery", order.tid, order.status, time);
   if (order.status === "DELIVERY_FAILED") {
     await redis.lpush(
       "QUEUE:PAYMENT:RECONCILIATION",

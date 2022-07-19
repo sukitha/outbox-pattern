@@ -30,17 +30,28 @@ db.event = sequelize.define("event", {
   },
   entityId: {
     type: Sequelize.STRING,
-    primaryKey: true
+    primaryKey: true,
   },
 });
 
-db.event
-  .sync()
-  .then(() => {
-    console.log("Connected to DB...");
-  })
-  .catch((err) => {
-    console.log("Error connecting to DB: " + err.message);
-  });
+db.connect = () => {
+    db.sequelize
+      .authenticate()
+      .then(function () {
+        console.log("Connection has been established successfully.");
+        db.event
+          .sync()
+          .then(() => {
+            console.log("Connected to DB...");
+          })
+          .catch((err) => {
+            console.log("Error connecting to DB: " + err.message);
+          });
+      })
+      .catch(function (err) {
+        console.log("Unable to connect to the database:", err);
+        connect();
+      });
+};
 
 module.exports = db;

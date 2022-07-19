@@ -41,7 +41,6 @@ function PaymentHandler() {
           PaymentReconciliation(JSON.parse(data[1]));
         }
       }
-
       PaymentHandler();
     });
 }

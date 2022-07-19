@@ -86,14 +86,6 @@ services:
      - zookeeper
     environment:
      - ZOOKEEPER_CONNECT=zookeeper:2181
-  # postgres:
-  #   image: debezium/example-postgres
-  #   ports:
-  #    - 5432:5432
-  #   environment:
-  #     POSTGRES_USER: orderapp
-  #     POSTGRES_PASSWORD: orderapps
-  #     POSTGRES_DB: orderapp
   connect:
     image: debezium/connect:1.8
     restart: always
@@ -108,11 +100,7 @@ services:
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
       STATUS_STORAGE_TOPIC: my_connect_statuses
-      # KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
-      # VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
-      # CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-
+  
   schema-registry:
     image: confluentinc/cp-schema-registry:5.5.3
     environment:
